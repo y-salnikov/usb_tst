@@ -4,24 +4,56 @@
 #include "usb.h"
 #include "compat.h"
 #include "pthread.h"
+#include <time.h>
 
 pthread_t usb_poll_thread;
 
 extern const char *firmware[];
+
+void hr_print(uint64_t value)
+{
+    const char *suffix=" KMGTP????????";
+    double v;
+    int i=0;
+    v=value*1.0;
+    while(v>1000.0)
+    {
+	v=v/1024.0;
+	i++;
+    }
+    printf("%.2f %c",v,suffix[i]);
+}
 
 
 void parse_data(void* buffer, uint32_t length)
 {
 	static uint64_t summ;
 	static uint64_t counter;
+	static struct timeval tv,tv_old;
+        double delta;
+        uint64_t speed=0;
 	summ+=length;
 	counter++;
 	if(counter>=1024)
 	{
-		counter=0;
-		printf("%lu bytes transfered\n",summ);
+	    if ((tv_old.tv_sec+tv_old.tv_usec)!=0)
+	    {
+		tv_old.tv_sec=tv.tv_sec;
+		tv_old.tv_usec=tv.tv_usec;
+		gettimeofday(&tv,NULL);
+		delta=((tv.tv_sec-tv_old.tv_sec)*1.0)+(tv.tv_usec-tv_old.tv_usec)/1000000.0;
+		speed=(uint64_t)((length*1024)/delta);
+	    }
+	    else gettimeofday(&tv_old,NULL);
+	    counter=0;
+	    hr_print(summ);
+	    printf("B transfered @ ");
+	    hr_print(speed);
+	    printf("B/s\n");
 	}
 }
+
+
 
 int main(void)
 {
@@ -45,4 +77,3 @@ int main(void)
 	}
 	return 0;
 }
-
