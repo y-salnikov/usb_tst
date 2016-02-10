@@ -49,10 +49,12 @@ void parse_data(void* buffer, uint32_t length)
 		speed=(uint64_t)((length*counter*1000000)/(delta));
 	    
 	    counter=0;
+	    printf(" \033[0G\033[32;1m");
 	    hr_print(summ);
-	    printf("B transfered @ ");
+	    printf("B \033[30;0mtransfered @ \033[35;1m");
 	    hr_print(speed);
-	    printf("B/s\n");
+	    printf("B/s\033[30;0m  ");
+	    fflush(stdout);
 	}
 }
 
