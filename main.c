@@ -30,21 +30,20 @@ void parse_data(void* buffer, uint32_t length)
 	static uint64_t summ;
 	static uint64_t counter;
 	static struct timeval tv,tv_old;
-        double delta;
+        uint64_t delta;
         uint64_t speed=0;
 	summ+=length;
 	counter++;
+	if((tv.tv_sec==0)&&(tv.tv_usec==0)) gettimeofday(&tv,NULL);
 	if(counter>=1024)
 	{
-	    if ((tv_old.tv_sec+tv_old.tv_usec)!=0)
-	    {
 		tv_old.tv_sec=tv.tv_sec;
 		tv_old.tv_usec=tv.tv_usec;
 		gettimeofday(&tv,NULL);
-		delta=((tv.tv_sec-tv_old.tv_sec)*1.0)+(tv.tv_usec-tv_old.tv_usec)/1000000.0;
-		speed=(uint64_t)((length*1024)/delta);
-	    }
-	    else gettimeofday(&tv_old,NULL);
+		delta=((tv.tv_sec-tv_old.tv_sec)*1000000)+(tv.tv_usec-tv_old.tv_usec);
+		printf("%lu\n",delta);
+		speed=(uint64_t)((length*1024.0*1000000)/(delta));
+	    
 	    counter=0;
 	    hr_print(summ);
 	    printf("B transfered @ ");
