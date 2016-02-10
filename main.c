@@ -41,7 +41,6 @@ void parse_data(void* buffer, uint32_t length)
 		tv_old.tv_usec=tv.tv_usec;
 		gettimeofday(&tv,NULL);
 		delta=((tv.tv_sec-tv_old.tv_sec)*1000000)+(tv.tv_usec-tv_old.tv_usec);
-		printf("%lu\n",delta);
 		speed=(uint64_t)((length*1024.0*1000000)/(delta));
 	    
 	    counter=0;
