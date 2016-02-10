@@ -29,19 +29,24 @@ void parse_data(void* buffer, uint32_t length)
 {
 	static uint64_t summ;
 	static uint64_t counter;
-	static struct timeval tv,tv_old;
+	static struct timeval tv,tv_old,tv2,tv2_old;
         uint64_t delta;
         uint64_t speed=0;
 	summ+=length;
 	counter++;
+	if((tv2_old.tv_sec==0)&&(tv2_old.tv_usec==0)) gettimeofday(&tv2_old,NULL);
 	if((tv.tv_sec==0)&&(tv.tv_usec==0)) gettimeofday(&tv,NULL);
-	if(counter>=1024)
+	
+	gettimeofday(&tv2,NULL);
+	
+	if( ((tv2.tv_sec-tv2_old.tv_sec)*1000000)+(tv2.tv_usec-tv2_old.tv_usec)>=1000000 )
 	{
+		gettimeofday(&tv2_old,NULL);	
 		tv_old.tv_sec=tv.tv_sec;
 		tv_old.tv_usec=tv.tv_usec;
 		gettimeofday(&tv,NULL);
 		delta=((tv.tv_sec-tv_old.tv_sec)*1000000)+(tv.tv_usec-tv_old.tv_usec);
-		speed=(uint64_t)((length*1024.0*1000000)/(delta));
+		speed=(uint64_t)((length*counter*1000000)/(delta));
 	    
 	    counter=0;
 	    hr_print(summ);
