@@ -238,7 +238,7 @@ usb_transfer_context_type*  usb_init(const char **firmware, uint16_t vid,uint16_
 		free(utc);
 		return NULL;
 	}
-	libusb_set_debug(NULL,1);
+	libusb_set_debug(NULL,2);
 	utc->device_h=libusb_open_device_with_vid_pid(NULL,0xffff,0x2048);
 	if(utc->device_h==NULL)
 	{
@@ -323,6 +323,7 @@ void usb_send_start_cmd(usb_transfer_context_type *utc)
 
 void usb_start_transfer (usb_transfer_context_type *utc) 
 {
+    #define NUM_PACKETS 2
     uint8_t i;
     uint8_t *usb_buf;
     struct libusb_transfer *xfr;
@@ -331,9 +332,8 @@ void usb_start_transfer (usb_transfer_context_type *utc)
     for(i=0;i<utc->N_OF_TRANSFERS;i++)
     {
 		usb_buf=malloc(utc->USB_BUF_SIZE);
-		xfr = libusb_alloc_transfer(0);
-		libusb_fill_bulk_transfer(xfr, utc->device_h, utc->endpoint, usb_buf, utc->USB_BUF_SIZE, callbackUSBTransferComplete, utc, utc->usb_timeout );
-	    
+		xfr = libusb_alloc_transfer(NUM_PACKETS);
+		libusb_fill_iso_transfer(xfr, utc->device_h, utc->endpoint, usb_buf, utc->USB_BUF_SIZE, NUM_PACKETS, callbackUSBTransferComplete, utc, utc->usb_timeout );
 		if(libusb_submit_transfer(xfr) < 0)
 		{
 		    // Error
