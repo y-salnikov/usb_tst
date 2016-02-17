@@ -110,7 +110,7 @@ highspd_dscr_end:
 	.db	0x82			; EP number (2), direction (IN)
 	.db	ENDPOINT_TYPE_ISO	; Endpoint type (ISO)
 	.db	0x00			; Max. packet size, LSB ()
-	.db	0x04			; Max. packet size, MSB ()
+	.db	0x14			; Max. packet size, MSB ()
 	.db	0x01			; Polling interval
 
 highspd_dscr_realend:

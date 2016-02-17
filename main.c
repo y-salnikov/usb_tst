@@ -36,7 +36,6 @@ void parse_data(void* buffer, uint32_t length)
 	counter++;
 	if((tv2_old.tv_sec==0)&&(tv2_old.tv_usec==0)) gettimeofday(&tv2_old,NULL);
 	if((tv.tv_sec==0)&&(tv.tv_usec==0)) gettimeofday(&tv,NULL);
-	
 	gettimeofday(&tv2,NULL);
 	
 	if( ((tv2.tv_sec-tv2_old.tv_sec)*1000000)+(tv2.tv_usec-tv2_old.tv_usec)>=1000000 )

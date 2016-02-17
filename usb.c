@@ -165,8 +165,8 @@ usb_transfer_context_type*  usb_init(const char **firmware, uint16_t vid,uint16_
 	utc=malloc(sizeof(usb_transfer_context_type));
 	utc->vid=vid;
 	utc->pid=pid;
-	utc->USB_BUF_SIZE=16384;
-	utc->N_OF_TRANSFERS=10;
+	utc->USB_BUF_SIZE=3072;
+	utc->N_OF_TRANSFERS=5;
 	utc->usb_timeout=100;
 	utc->active_transfers=0;
 	utc->usb_transfer_cb_served=0;
@@ -319,11 +319,11 @@ void usb_send_start_cmd(usb_transfer_context_type *utc)
 		}
 }
 
-
+#define NUM_PACKETS 10
 
 void usb_start_transfer (usb_transfer_context_type *utc) 
 {
-    #define NUM_PACKETS 2
+
     uint8_t i;
     uint8_t *usb_buf;
     struct libusb_transfer *xfr;
@@ -331,9 +331,10 @@ void usb_start_transfer (usb_transfer_context_type *utc)
     usb_send_start_cmd(utc);
     for(i=0;i<utc->N_OF_TRANSFERS;i++)
     {
-		usb_buf=malloc(utc->USB_BUF_SIZE);
+		usb_buf=malloc(utc->USB_BUF_SIZE*NUM_PACKETS);
 		xfr = libusb_alloc_transfer(NUM_PACKETS);
-		libusb_fill_iso_transfer(xfr, utc->device_h, utc->endpoint, usb_buf, utc->USB_BUF_SIZE, NUM_PACKETS, callbackUSBTransferComplete, utc, utc->usb_timeout );
+		libusb_fill_iso_transfer(xfr, utc->device_h, utc->endpoint, usb_buf, utc->USB_BUF_SIZE*NUM_PACKETS, NUM_PACKETS, callbackUSBTransferComplete, utc, utc->usb_timeout );
+		
 		if(libusb_submit_transfer(xfr) < 0)
 		{
 		    // Error
@@ -351,7 +352,8 @@ LIBUSB_CALL void callbackUSBTransferComplete(struct libusb_transfer *xfr)
 {
 	uint8_t err=0;
 	usb_transfer_context_type *utc;
-
+	int i;
+	struct libusb_iso_packet_descriptor *desc; 
 	if(xfr->user_data==NULL)  // control transfer
 	{
 		if(xfr->status!=LIBUSB_TRANSFER_COMPLETED)
@@ -361,7 +363,10 @@ LIBUSB_CALL void callbackUSBTransferComplete(struct libusb_transfer *xfr)
 	}
 	else
 	{
-		utc=xfr->user_data;
+	    utc=xfr->user_data;
+	    for(i=0;i<NUM_PACKETS;i++)
+	    {
+	    desc=&xfr->iso_packet_desc[i];
 	    switch(xfr->status)
 	    {
 	        case LIBUSB_TRANSFER_COMPLETED:
@@ -369,16 +374,8 @@ LIBUSB_CALL void callbackUSBTransferComplete(struct libusb_transfer *xfr)
 	            // xfr->buffer
 	            // and the length is
 	            // xfr->actual_length
-		    parse_data((void *)xfr->buffer, xfr->actual_length);
-		    if(libusb_submit_transfer(xfr) < 0)
-		    {
-				// Error
-				libusb_free_transfer(xfr);
-				free(xfr->buffer);
-				fprintf(stderr,"USB resubmit transfer error\n");
-				utc->active_transfers--;
-				err=1;
-		    }
+		    parse_data((void *)xfr->buffer+(i*3072), desc->actual_length);
+		    if (desc->status != 0)     printf("packet %d has status %d", i, desc->status);
 	        break;
 	        case LIBUSB_TRANSFER_CANCELLED:
 				fprintf(stderr,"USB transfer error: canceled\n");
@@ -405,6 +402,17 @@ LIBUSB_CALL void callbackUSBTransferComplete(struct libusb_transfer *xfr)
 		    	err=1;
 	            break;
 	    }
+	    }
+	    if(err==0)
+	    if(libusb_submit_transfer(xfr) < 0)
+		    {
+				// Error
+				libusb_free_transfer(xfr);
+				free(xfr->buffer);
+				fprintf(stderr,"USB resubmit transfer error\n");
+				utc->active_transfers--;
+				err=1;
+		    }
 		if (err && utc->usb_stop_flag==0)
 		{
 			fprintf(stderr,"%d active transfers left\n", --utc->active_transfers);
