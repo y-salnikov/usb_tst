@@ -334,7 +334,7 @@ void usb_start_transfer (usb_transfer_context_type *utc)
 		usb_buf=malloc(utc->USB_BUF_SIZE*NUM_PACKETS);
 		xfr = libusb_alloc_transfer(NUM_PACKETS);
 		libusb_fill_iso_transfer(xfr, utc->device_h, utc->endpoint, usb_buf, utc->USB_BUF_SIZE*NUM_PACKETS, NUM_PACKETS, callbackUSBTransferComplete, utc, utc->usb_timeout );
-		
+		libusb_set_iso_packet_lengths(xfr,utc->USB_BUF_SIZE);
 		if(libusb_submit_transfer(xfr) < 0)
 		{
 		    // Error
