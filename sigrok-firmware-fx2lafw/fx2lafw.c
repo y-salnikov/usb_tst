@@ -56,7 +56,7 @@ static void setup_endpoints(void)
 	/* Setup EP2 (IN). */
 	EP2CFG = (1 << 7) |		  /* EP is valid/activated */
 		 (1 << 6) |		  /* EP direction: IN */
-		 (0 << 5) | (1 << 4) |	  /* EP Type: bulk */
+		 (0 << 5) | (1 << 4) |	  /* EP Type: isoc */
 		 (1 << 3) |		  /* EP buffer size: 1024 */
 		 (0 << 2) |		  /* Reserved. */
 		 (0 << 1) | (0 << 0);	  /* EP buffering: quad buffering */
@@ -82,8 +82,8 @@ static void setup_endpoints(void)
 	EP2FIFOCFG = bmAUTOIN;
 	SYNCDELAY();
 
-	/* EP2: Auto-commit 512 (0x200) byte packets (due to AUTOIN = 1). */
-	EP2AUTOINLENH = 0x02;
+	/* EP2: Auto-commit 1024 (0x400) byte packets (due to AUTOIN = 1). */
+	EP2AUTOINLENH = 0x04;
 	SYNCDELAY();
 	EP2AUTOINLENL = 0x00;
 	SYNCDELAY();

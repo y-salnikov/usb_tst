@@ -307,7 +307,7 @@ void usb_send_start_cmd(usb_transfer_context_type *utc)
 	libusb_fill_control_setup(utc->control_buffer,0x40,CMD_START,0,0,3);
 	utc->control_buffer[8]=flg;
 	utc->control_buffer[9]=0;	//sample_delay_h
-	utc->control_buffer[10]=1;  //sample_dtlay_l
+	utc->control_buffer[10]=9;  //sample_dtlay_l
 	
 	libusb_fill_control_transfer(xfr, utc->device_h, utc->control_buffer, callbackUSBTransferComplete, NULL,1000);
 	if(libusb_submit_transfer(xfr) < 0)
