@@ -307,7 +307,7 @@ void usb_send_start_cmd(usb_transfer_context_type *utc)
 	libusb_fill_control_setup(utc->control_buffer,0x40,CMD_START,0,0,3);
 	utc->control_buffer[8]=flg;
 	utc->control_buffer[9]=0;	//sample_delay_h
-	utc->control_buffer[10]=9;  //sample_dtlay_l
+	utc->control_buffer[10]=1;  //sample_dtlay_l
 	
 	libusb_fill_control_transfer(xfr, utc->device_h, utc->control_buffer, callbackUSBTransferComplete, NULL,1000);
 	if(libusb_submit_transfer(xfr) < 0)
@@ -319,7 +319,7 @@ void usb_send_start_cmd(usb_transfer_context_type *utc)
 		}
 }
 
-#define NUM_PACKETS 10
+#define NUM_PACKETS 24
 
 void usb_start_transfer (usb_transfer_context_type *utc) 
 {
@@ -375,7 +375,7 @@ LIBUSB_CALL void callbackUSBTransferComplete(struct libusb_transfer *xfr)
 	            // and the length is
 	            // xfr->actual_length
 		    parse_data((void *)xfr->buffer+(i*3072), desc->actual_length);
-		    if (desc->status != 0)     printf("packet %d has status %d", i, desc->status);
+//		    if (desc->status != 0)     printf("packet %d has status %d and length %d\n", i, desc->status, desc->actual_length);
 	        break;
 	        case LIBUSB_TRANSFER_CANCELLED:
 				fprintf(stderr,"USB transfer error: canceled\n");

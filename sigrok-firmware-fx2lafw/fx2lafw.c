@@ -87,7 +87,8 @@ static void setup_endpoints(void)
 	SYNCDELAY();
 	EP2AUTOINLENL = 0x00;
 	SYNCDELAY();
-
+	EP2ISOINPKTS=3;
+	SYNCDELAY();
 	/* EP2: Set the GPIF flag to 'full'. */
 	EP2GPIFFLGSEL = (1 << 1) | (0 << 1);
 	SYNCDELAY();
