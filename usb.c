@@ -328,7 +328,7 @@ void usb_start_transfer (usb_transfer_context_type *utc)
     uint8_t *usb_buf;
     struct libusb_transfer *xfr;
     if (utc==NULL) return;
-    usb_send_start_cmd(utc);
+
     for(i=0;i<utc->N_OF_TRANSFERS;i++)
     {
 		usb_buf=malloc(utc->USB_BUF_SIZE*NUM_PACKETS);
@@ -344,7 +344,7 @@ void usb_start_transfer (usb_transfer_context_type *utc)
 		}
 		else utc->active_transfers++;
     }
-    
+    usb_send_start_cmd(utc);    
     
 }
 
