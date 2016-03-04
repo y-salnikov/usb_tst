@@ -15,6 +15,7 @@ typedef struct usb_transfer_context_struct
 	int USB_BUF_SIZE;
 	int N_OF_TRANSFERS;
 	int usb_timeout;
+	uint8_t *tmp_buffer;
 	
 }usb_transfer_context_type;
 

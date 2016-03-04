@@ -11,12 +11,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
+#include <sched.h>
 #include "command.h"
 #include "compat.h"
 #include "types.h"
 #include "usb.h"
 
+#define MAX_EMPTY_TRANSFERS 64
+#define FREQ 12000000
+
 void parse_data(void* buffer, uint32_t length);
+
 
 LIBUSB_CALL void callbackUSBTransferComplete(struct libusb_transfer *xfr);
 
@@ -145,7 +151,10 @@ int ProgramIHexLine(usb_transfer_context_type *utc, const char *buf,	const char 
 	return(0);
 }
 
-
+static unsigned int to_bytes_per_ms(unsigned int samplerate)
+{
+	return samplerate / 1000;
+}
 
 usb_transfer_context_type*  usb_init(const char **firmware, uint16_t vid,uint16_t pid)
 {
@@ -154,8 +163,9 @@ usb_transfer_context_type*  usb_init(const char **firmware, uint16_t vid,uint16_
 	int err,line;
 	const char *s;
 	const char **ss;
+	size_t sz;
+	unsigned int timeout;
 	
-
 	if (libusb_init(NULL))
 	{
 		fprintf(stderr,"libusb Init error\n");
@@ -165,13 +175,30 @@ usb_transfer_context_type*  usb_init(const char **firmware, uint16_t vid,uint16_
 	utc=malloc(sizeof(usb_transfer_context_type));
 	utc->vid=vid;
 	utc->pid=pid;
-	utc->USB_BUF_SIZE=16384;
-	utc->N_OF_TRANSFERS=10;
-	utc->usb_timeout=100;
+//	utc->USB_BUF_SIZE=16384;
+//	utc->N_OF_TRANSFERS=10;
+//	utc->usb_timeout=100;
 	utc->active_transfers=0;
 	utc->usb_transfer_cb_served=0;
 	utc->usb_stop_flag=2;   // 0 -running, 1-stoppes, 2-not inited
 	utc->device_h=libusb_open_device_with_vid_pid(NULL,vid,pid);
+
+	sz = 10 * to_bytes_per_ms(FREQ);
+	utc->USB_BUF_SIZE=(sz + 511) & ~511;
+
+	/* Total buffer size should be able to hold about 500ms of data. */
+	utc->N_OF_TRANSFERS = (500 * to_bytes_per_ms(FREQ)) / utc->USB_BUF_SIZE;
+
+	if ( utc->N_OF_TRANSFERS > 32)
+		utc->N_OF_TRANSFERS=32;
+
+	
+
+	sz = utc->USB_BUF_SIZE * utc->N_OF_TRANSFERS;
+	timeout = sz / to_bytes_per_ms(FREQ);
+	utc->usb_timeout=(timeout + timeout / 4); /* Leave a headroom of 25% percent. */
+	utc->tmp_buffer=malloc(utc->USB_BUF_SIZE);
+	
 	if(utc->device_h==NULL)
 	{
 	    fprintf(stderr,"No device found or device already configured.\n");
@@ -347,11 +374,15 @@ void usb_start_transfer (usb_transfer_context_type *utc)
     
 }
 
+
 LIBUSB_CALL void callbackUSBTransferComplete(struct libusb_transfer *xfr)
 {
 	uint8_t err=0;
+	uint8_t fatal=0;
 	usb_transfer_context_type *utc;
-
+	static int et_count;
+	size_t lngth;
+	
 	if(xfr->user_data==NULL)  // control transfer
 	{
 		if(xfr->status!=LIBUSB_TRANSFER_COMPLETED)
@@ -364,53 +395,62 @@ LIBUSB_CALL void callbackUSBTransferComplete(struct libusb_transfer *xfr)
 		utc=xfr->user_data;
 	    switch(xfr->status)
 	    {
-	        case LIBUSB_TRANSFER_COMPLETED:
-	            // Success here, data transfered are inside 
-	            // xfr->buffer
-	            // and the length is
-	            // xfr->actual_length
-		    parse_data((void *)xfr->buffer, xfr->actual_length);
-		    if(libusb_submit_transfer(xfr) < 0)
-		    {
-				// Error
-				libusb_free_transfer(xfr);
-				free(xfr->buffer);
-				fprintf(stderr,"USB resubmit transfer error\n");
-				utc->active_transfers--;
-				err=1;
-		    }
-	        break;
-	        case LIBUSB_TRANSFER_CANCELLED:
-				fprintf(stderr,"USB transfer error: canceled\n");
-				err=1;
-	        break;
-	        case LIBUSB_TRANSFER_NO_DEVICE:
+			case LIBUSB_TRANSFER_NO_DEVICE:
 				if(utc->usb_stop_flag!=1) fprintf(stderr,"USB transfer error: no device\n");
-				err=1;
+				fatal=1;
 	        break;
+	        case LIBUSB_TRANSFER_COMPLETED:
 	        case LIBUSB_TRANSFER_TIMED_OUT:
-				fprintf(stderr,"USB transfer error: time out\n");
-		    	err=1;
 	        break;
-	        case LIBUSB_TRANSFER_ERROR:
-				fprintf(stderr,"USB transfer error\n");
-		    	err=1;
-	        break;
-	        case LIBUSB_TRANSFER_STALL:
-				fprintf(stderr,"USB transfer error: stall\n");
-		    	err=1;
-	        break;
-	        case LIBUSB_TRANSFER_OVERFLOW:
-				fprintf(stderr,"USB transfer error: overflow\n");
-		    	err=1;
-	            break;
+	        
+	        default:
+				err=1;
+				break;
 	    }
-		if (err && utc->usb_stop_flag==0)
+
+		if(xfr->actual_length==0 || err)
 		{
-			fprintf(stderr,"%d active transfers left\n", --utc->active_transfers);
-			free(xfr->buffer);
+			et_count++;
+			if(et_count>=MAX_EMPTY_TRANSFERS)
+	        {
+				fprintf(stderr,"%d empty transfers\n",MAX_EMPTY_TRANSFERS);
+				fatal=1;
+			}
+			else
+			{
+				if(libusb_submit_transfer(xfr) < 0)
+			    {
+					// Error
+					libusb_free_transfer(xfr);
+					free(xfr->buffer);
+					fprintf(stderr,"USB resubmit transfer error\n");
+					utc->active_transfers--;
+					err=1;
+			    }
+			}
+			return;
 		}
-	    if (utc->active_transfers<2) utc->usb_stop_flag=1;
+	    else et_count=0;
+		lngth=xfr->actual_length;
+		memcpy(utc->tmp_buffer,xfr->buffer,lngth);
+		if(libusb_submit_transfer(xfr) < 0)
+			    {
+					// Error
+					libusb_free_transfer(xfr);
+					free(xfr->buffer);
+					fprintf(stderr,"USB resubmit transfer error\n");
+					utc->active_transfers--;
+					err=1;
+			    }
+		parse_data(utc->tmp_buffer, lngth);
+
+	    
+		if (fatal && utc->usb_stop_flag==0)
+		{
+			utc->usb_stop_flag=1;
+			return;
+		}
+	    
 	    utc->usb_transfer_cb_served=1;
 	}
 }
@@ -434,7 +474,8 @@ void* usb_thread_function(void *utc_ptr)
 	while(!utc->usb_stop_flag)
 	{
 		usb_poll();
-		SLEEP(1);
+		SLEEP(0);
+		sched_yield();
 	}
 	return NULL;
 }

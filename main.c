@@ -4,7 +4,7 @@
 #include "usb.h"
 #include "compat.h"
 #include "pthread.h"
-#include <time.h>
+#include <sys/time.h>
 
 pthread_t usb_poll_thread;
 
@@ -49,11 +49,24 @@ void parse_data(void* buffer, uint32_t length)
 		speed=(uint64_t)((length*counter*1000000)/(delta));
 	    
 	    counter=0;
+#ifdef UNIX
 	    printf(" \033[0G\033[32;1m");
+#endif
 	    hr_print(summ);
-	    printf("B \033[30;0mtransfered @ \033[35;1m");
+	    printf("B ");
+#ifdef UNIX
+	    printf("\033[30;0m");
+#endif
+	    printf("transfered @ ");
+#ifdef UNIX
+	    printf("\033[35;1m");
+#endif
 	    hr_print(speed);
+#ifdef UNIX
 	    printf("B/s\033[30;0m  ");
+#else
+		printf("\n");
+#endif
 	    fflush(stdout);
 	}
 }
