@@ -19,7 +19,7 @@
 #include "usb.h"
 
 #define MAX_EMPTY_TRANSFERS 64
-#define FREQ 12000000
+
 
 void parse_data(void* buffer, uint32_t length);
 
@@ -156,7 +156,7 @@ static unsigned int to_bytes_per_ms(unsigned int samplerate)
 	return samplerate / 1000;
 }
 
-usb_transfer_context_type*  usb_init(const char **firmware, uint16_t vid,uint16_t pid)
+usb_transfer_context_type*  usb_init(const char **firmware, uint16_t vid,uint16_t pid,uint16_t del)
 {
 
 	usb_transfer_context_type *utc;
@@ -165,6 +165,7 @@ usb_transfer_context_type*  usb_init(const char **firmware, uint16_t vid,uint16_
 	const char **ss;
 	size_t sz;
 	unsigned int timeout;
+	uint32_t FREQ;
 	
 	if (libusb_init(NULL))
 	{
@@ -175,6 +176,7 @@ usb_transfer_context_type*  usb_init(const char **firmware, uint16_t vid,uint16_
 	utc=malloc(sizeof(usb_transfer_context_type));
 	utc->vid=vid;
 	utc->pid=pid;
+	utc->delay=del;
 //	utc->USB_BUF_SIZE=16384;
 //	utc->N_OF_TRANSFERS=10;
 //	utc->usb_timeout=100;
@@ -182,7 +184,8 @@ usb_transfer_context_type*  usb_init(const char **firmware, uint16_t vid,uint16_
 	utc->usb_transfer_cb_served=0;
 	utc->usb_stop_flag=2;   // 0 -running, 1-stoppes, 2-not inited
 	utc->device_h=libusb_open_device_with_vid_pid(NULL,vid,pid);
-
+	FREQ=48000000/(1+utc->delay);
+	
 	sz = 10 * to_bytes_per_ms(FREQ);
 	utc->USB_BUF_SIZE=(sz + 511) & ~511;
 
@@ -333,8 +336,8 @@ void usb_send_start_cmd(usb_transfer_context_type *utc)
 	xfr = libusb_alloc_transfer(0);
 	libusb_fill_control_setup(utc->control_buffer,0x40,CMD_START,0,0,3);
 	utc->control_buffer[8]=flg;
-	utc->control_buffer[9]=0;	//sample_delay_h
-	utc->control_buffer[10]=1;  //sample_dtlay_l
+	utc->control_buffer[9]=utc->delay>>8;	//sample_delay_h
+	utc->control_buffer[10]=utc->delay & 0xff;  //sample_dtlay_l
 	
 	libusb_fill_control_transfer(xfr, utc->device_h, utc->control_buffer, callbackUSBTransferComplete, NULL,1000);
 	if(libusb_submit_transfer(xfr) < 0)

@@ -4,6 +4,7 @@
 #include "usb.h"
 #include "compat.h"
 #include "pthread.h"
+#include <stdlib.h>
 #include <sys/time.h>
 
 pthread_t usb_poll_thread;
@@ -73,15 +74,22 @@ void parse_data(void* buffer, uint32_t length)
 
 
 
-int main(void)
+int main(int argc, char **argv)
 {
 	int iret;
+	uint16_t del;
 	usb_transfer_context_type *utc;
+	if(argc<2) del=1;
+	else
+	{
+		del=atoi(argv[1]);
+		if (del==0) del=1;
+	}
 
-	utc=usb_init(firmware, 0x0925,0x3881);
+	utc=usb_init(firmware, 0x0925,0x3881,del);
 
 	if(utc==NULL) return 3;
-	
+
 	iret = pthread_create( &usb_poll_thread, NULL, usb_thread_function, (void*) utc);
 	     if(iret)
 	     {
