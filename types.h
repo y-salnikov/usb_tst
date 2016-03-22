@@ -17,6 +17,7 @@ typedef struct usb_transfer_context_struct
 	int usb_timeout;
 	uint8_t *tmp_buffer;
 	uint8_t delay;
+	uint32_t counter;
 	
 }usb_transfer_context_type;
 

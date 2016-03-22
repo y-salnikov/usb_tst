@@ -21,7 +21,7 @@
 #define MAX_EMPTY_TRANSFERS 64
 
 
-void parse_data(void* buffer, uint32_t length);
+void parse_data(void* buffer, uint32_t length,usb_transfer_context_type *utc);
 
 
 LIBUSB_CALL void callbackUSBTransferComplete(struct libusb_transfer *xfr);
@@ -177,6 +177,7 @@ usb_transfer_context_type*  usb_init(const char **firmware, uint16_t vid,uint16_
 	utc->vid=vid;
 	utc->pid=pid;
 	utc->delay=del;
+	utc->counter=0;
 //	utc->USB_BUF_SIZE=16384;
 //	utc->N_OF_TRANSFERS=10;
 //	utc->usb_timeout=100;
@@ -268,8 +269,8 @@ usb_transfer_context_type*  usb_init(const char **firmware, uint16_t vid,uint16_
 		free(utc);
 		return NULL;
 	}
-	libusb_set_debug(NULL,1);
-	utc->device_h=libusb_open_device_with_vid_pid(NULL,0xffff,0x2048);
+	libusb_set_debug(NULL,LIBUSB_LOG_LEVEL_WARNING);
+	utc->device_h=libusb_open_device_with_vid_pid(NULL,0x04b4,0x8613);
 	if(utc->device_h==NULL)
 	{
 	    fprintf(stderr,"No reconfigured device found\n");
@@ -351,30 +352,34 @@ void usb_send_start_cmd(usb_transfer_context_type *utc)
 
 
 
+
 void usb_start_transfer (usb_transfer_context_type *utc) 
 {
     uint8_t i;
-    uint8_t *usb_buf;
-    struct libusb_transfer *xfr;
+    uint8_t **usb_buf;
+    struct libusb_transfer **xfr;
     if (utc==NULL) return;
-    usb_send_start_cmd(utc);
+    usb_buf=calloc(utc->N_OF_TRANSFERS,sizeof(*usb_buf));
+    xfr=calloc(utc->N_OF_TRANSFERS,sizeof(*xfr));
+    
     for(i=0;i<utc->N_OF_TRANSFERS;i++)
     {
-		usb_buf=malloc(utc->USB_BUF_SIZE);
-		xfr = libusb_alloc_transfer(0);
-		libusb_fill_bulk_transfer(xfr, utc->device_h, utc->endpoint, usb_buf, utc->USB_BUF_SIZE, callbackUSBTransferComplete, utc, utc->usb_timeout );
-	    
-		if(libusb_submit_transfer(xfr) < 0)
+		usb_buf[i]=malloc(utc->USB_BUF_SIZE);
+		xfr[i] = libusb_alloc_transfer(0);
+		libusb_fill_bulk_transfer(xfr[i], utc->device_h, utc->endpoint, usb_buf[i], utc->USB_BUF_SIZE, callbackUSBTransferComplete, utc, utc->usb_timeout );
+	}
+	for(i=0;i<utc->N_OF_TRANSFERS;i++)
+	{
+		if(libusb_submit_transfer(xfr[i]) < 0)
 		{
 		    // Error
-		    libusb_free_transfer(xfr);
-		    free(usb_buf);
+		    libusb_free_transfer(xfr[i]);
+		    free(usb_buf[i]);
 		    fprintf(stderr,"USB submit transfer %d error\n",i);
 		}
 		else utc->active_transfers++;
     }
-    
-    
+    usb_send_start_cmd(utc);
 }
 
 
@@ -445,7 +450,7 @@ LIBUSB_CALL void callbackUSBTransferComplete(struct libusb_transfer *xfr)
 					utc->active_transfers--;
 					err=1;
 			    }
-		parse_data(utc->tmp_buffer, lngth);
+		parse_data(utc->tmp_buffer, lngth,utc);
 
 	    
 		if (fatal && utc->usb_stop_flag==0)
@@ -477,7 +482,7 @@ void* usb_thread_function(void *utc_ptr)
 	while(!utc->usb_stop_flag)
 	{
 		usb_poll();
-		SLEEP(0);
+		utc->counter++;
 		sched_yield();
 	}
 	return NULL;

@@ -19,7 +19,7 @@
 ;; Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 ;;
 
-VID = 0xffff	; Manufacturer ID (0xffff)
-PID = 0x4820	; Product ID (0x4820)
+VID = 0xb404	; Manufacturer ID (0x04b4)
+PID = 0x1386	; Product ID (0x8613)
 
 .include "dscr.inc"

@@ -26,13 +26,13 @@ void hr_print(uint64_t value)
 }
 
 
-void parse_data(void* buffer, uint32_t length)
+void parse_data(void* buffer, uint32_t length, usb_transfer_context_type *utc)
 {
 	static uint64_t summ;
 	static uint64_t counter;
 	static struct timeval tv,tv_old,tv2,tv2_old;
-        uint64_t delta;
-        uint64_t speed=0;
+    uint64_t delta;
+    uint64_t speed=0; 
 	summ+=length;
 	counter++;
 	if((tv2_old.tv_sec==0)&&(tv2_old.tv_usec==0)) gettimeofday(&tv2_old,NULL);
@@ -50,24 +50,26 @@ void parse_data(void* buffer, uint32_t length)
 		speed=(uint64_t)((length*counter*1000000)/(delta));
 	    
 	    counter=0;
+	    
 #ifdef UNIX
 	    printf(" \033[0G\033[32;1m");
-#endif
 	    hr_print(summ);
 	    printf("B ");
-#ifdef UNIX
 	    printf("\033[30;0m");
-#endif
 	    printf("transfered @ ");
-#ifdef UNIX
 	    printf("\033[35;1m");
-#endif
 	    hr_print(speed);
-#ifdef UNIX
 	    printf("B/s\033[30;0m  ");
+	    printf("\nThread execution: %ld times/s.             \033[1A",(long int)utc->counter);
 #else
-		printf("\n");
+	    hr_print(summ);
+	    printf("B ");
+	    printf("transfered @ ");
+	    hr_print(speed);
+		printf("B/s\n");
+		printf("Thread execution: %ld times/s.\n",(long int)utc->counter);
 #endif
+		utc->counter=0;
 	    fflush(stdout);
 	}
 }
@@ -98,7 +100,7 @@ int main(int argc, char **argv)
 	     }
 	while(1)
 	{
-		SLEEP(10);
+		SLEEP(5);
 		if(utc->usb_stop_flag!=0) return 0;
 	}
 	return 0;
